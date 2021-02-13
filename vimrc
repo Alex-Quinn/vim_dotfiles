@@ -5,6 +5,7 @@ set nocompatible
 if &shell == "/usr/bin/sudosh"
   set shell=/bin/bash
 endif
+let $BASH_ENV = "~/.bash_aliases"
 
 " Install vim plugins
 let plugged_path = "~/.vim/plugged"
@@ -46,7 +47,6 @@ set wildignore+=*.pyc,*.o,*.class,*.lo,.git,vendor/*,node_modules/**,bower_compo
 set tags+=gems.tags
 set mouse=
 set ttymouse=
-set backupcopy=yes " Setting backup copy preserves file inodes, which are needed for Docker file mounting
 if v:version > 704 || v:version == 704 && has('patch2201') " signcolumn wasn't added until vim 7.4.2201
   set signcolumn=yes
 endif
@@ -63,18 +63,8 @@ set undolevels=1000 "maximum number of changes that can be undone
 " Color
 colorscheme vibrantink
 
-augroup markdown
-  au!
-  au BufNewFile,BufRead *.md,*.markdown setlocal filetype=ghmarkdown
-augroup END
-augroup Drakefile
-  au!
-  au BufNewFile,BufRead Drakefile,drakefile setlocal filetype=ruby
-augroup END
-augroup Jenkinsfile
-  au!
-  au BufNewFile,BufRead Jenkinsfile,jenkinsfile setlocal filetype=groovy
-augroup END
+set colorcolumn=80
+highlight ColorColumn ctermbg=235 guibg=#2c2d27
 
 " File Types
 
@@ -82,17 +72,9 @@ autocmd FileType php setlocal tabstop=4 shiftwidth=4 softtabstop=4
 autocmd FileType python setlocal tabstop=4 shiftwidth=4 softtabstop=4 expandtab
 autocmd FileType cs setlocal tabstop=4 shiftwidth=4 softtabstop=4
 
-if fnamemodify(getcwd(), ':t') == 'braintree-java'
-  autocmd FileType java setlocal tabstop=4 shiftwidth=4 softtabstop=4
-else
-  autocmd FileType java setlocal tabstop=2 shiftwidth=2 softtabstop=2
-endif
-
 autocmd FileType tex setlocal textwidth=78
 
 autocmd FileType ruby runtime ruby_mappings.vim
-autocmd FileType python runtime python_mappings.vim
-autocmd FileType java runtime java_mappings.vim
 
 " wstrip plugin
 " don't highlight trailing whitespace
@@ -105,9 +87,6 @@ if version >= 700
     autocmd BufNewFile,BufRead *.txt setlocal spell spelllang=en_us
     autocmd FileType tex setlocal spell spelllang=en_us
 endif
-
-" Run terraform fmt on terraform files
-autocmd BufWritePre *.tf call terraform#fmt()
 
 " Status
 set laststatus=2
@@ -123,18 +102,6 @@ set statusline+=%P                        " percentage of file
 
 " ========= Plugin Options ========
 
-let g:AckAllFiles = 0
-let g:AckCmd = 'ack --type-add ruby=.feature --ignore-dir=tmp 2> /dev/null'
-
-" Visual * search, modified from: https://git.io/vFGBB
-function! s:VSetSearch()
-	let temp = @@
-	norm! gvy
-	let @/ = '\V' . substitute(escape(@@, '\'), '\_s\+', '\\_s\\+', 'g')
-	call histadd('/', substitute(@/, '[?/]', '\="\\%d".char2nr(submatch(0))', 'g'))
-	let @@ = temp
-endfunction
-
 vnoremap * :<C-u>call <SID>VSetSearch()<CR>/<CR>
 
 let g:ale_enabled = 1                     " Enable linting by default
@@ -144,21 +111,12 @@ let g:ale_set_signs = 1                   " Enable signs showing in the gutter t
 let g:ale_linters_explicit = 1            " Only run linters that are explicitly listed below
 let g:ale_set_highlights = 0              " Disable highlighting as it interferes with readability and accessibility
 let g:ale_linters = {}
-let g:ale_linters['puppet'] = ['puppetlint']
-let g:ale_linters['elixir'] = ['mix']
 if filereadable(expand(".rubocop.yml"))
   let g:ale_linters['ruby'] = ['rubocop']
 endif
 
 let g:ale_fixers = {}
-let g:ale_fixers['elixir'] = ['mix_format']
 let g:ale_fix_on_save = 1
-
-let black = system('grep -q black Pipfile')
-if v:shell_error == 0
-  let g:ale_fixers['python'] = ['black']
-  let g:ale_python_black_auto_pipenv = 1
-endif
 
 let html_use_css=1
 let html_number_lines=0
@@ -181,23 +139,6 @@ let g:netrw_banner = 0
 
 let g:VimuxUseNearestPane = 1
 
-let g:rails_projections = {
-      \   "script/*.rb": {
-      \     "test": "spec/script/{}_spec.rb"
-      \   },
-      \   "spec/script/*_spec.rb": {
-      \     "alternate": "script/{}.rb"
-      \   },
-      \   "app/lib/*.rb": {
-      \     "test": "spec/lib/{}_spec.rb"
-      \   }
-      \ }
-
-autocmd FileType clojure RainbowParenthesesActivate
-autocmd Syntax clojure RainbowParenthesesLoadRound
-autocmd Syntax clojure RainbowParenthesesLoadSquare
-autocmd Syntax clojure RainbowParenthesesLoadBraces
-
 let g:rbpt_colorpairs = [
     \ ['brown',       'RoyalBlue3'],
     \ ['Darkblue',    'SeaGreen3'],
@@ -218,8 +159,6 @@ let g:rbpt_colorpairs = [
 
 let g:sexp_enable_insert_mode_mappings = 0
 
-let g:puppet_align_hashes = 0
-
 let $FZF_DEFAULT_COMMAND = 'find . -name "*" -type f 2>/dev/null                                                         
                             \ | grep -v -E "tmp\/|.gitmodules|.git\/|deps\/|_build\/|node_modules\/|vendor\/"
                             \ | sed "s|^\./||"'                                                                          
@@ -231,46 +170,12 @@ let g:fzf_action = {
   \ 'ctrl-s': 'split',
   \ 'ctrl-v': 'vsplit' }
 
-let g:vim_markdown_folding_disabled = 1
-
-let g:go_fmt_command = "goimports"
-let g:go_highlight_trailing_whitespace_error = 0
-
 let test#strategy = "vimux"
 let test#custom_runners = {}
-let test#python#runner = 'pytest'
-let nose_test = system('grep -q "nose" requirements.txt')
-if v:shell_error == 0
-  let test#python#runner = 'nose'
-endif
 
-if filereadable(expand('WORKSPACE'))
-  let test#custom_runners['java'] = ['bazeltest']
-  let test#java#runner = 'bazeltest'
-  let g:test#java#bazeltest#test_executable = './bazel test'
-  let g:test#java#bazeltest#file_pattern = '.*/test/.*\.java$'
-endif
-
-" Remove unused imports for Java
-autocmd FileType java autocmd BufWritePre * :UnusedImports
-
-" Language server for Java
-if executable('java-language-server')
-  autocmd User lsp_setup call lsp#register_server({
-    \ 'name': 'java-language-server',
-    \ 'cmd': {server_info->['java-language-server', '--quiet']},
-    \ 'whitelist': ['java'],
-    \ })
-  autocmd FileType java nmap <C-e> <plug>(lsp-document-diagnostics)
-  autocmd FileType java nmap <C-i> <plug>(lsp-hover)
-  autocmd FileType java nmap <C-]> <plug>(lsp-definition)
-  autocmd FileType java nmap gr <plug>(lsp-references)
-  autocmd FileType java nmap go <plug>(lsp-document-symbol)
-  autocmd FileType java nmap gS <plug>(lsp-workspace-symbol)
-
-  let g:asyncomplete_smart_completion = 1
-  let g:lsp_insert_text_enabled = 1
-endif
+" Markdown
+let g:markdown_fenced_languages = ['html', 'ruby', 'bash=sh']
+let g:markdown_syntax_conceal = 0
 
 " ========= Shortcuts ========
 
@@ -297,15 +202,8 @@ map <silent> <leader>ft :Tags<CR>
 
 map <silent> <C-p> :Files<CR>
 
-" Ack
-map <LocalLeader>aw :Ack '<C-R><C-W>'
-
-" GitHubURL
-map <silent> <LocalLeader>gh :GitHubURL<CR>
-
 " TComment
 map <silent> <LocalLeader>cc :TComment<CR>
-map <silent> <LocalLeader>uc :TComment<CR>
 
 " Vimux
 map <silent> <LocalLeader>vl :wa<CR> :VimuxRunLastCommand<CR>
@@ -334,9 +232,7 @@ nnoremap <silent> k gk
 nnoremap <silent> j gj
 nnoremap <silent> Y y$
 
-" search for trailing whitespace
-map <silent> <LocalLeader>ws /\s\+$<CR>
-
+" <Leader>pp to paste clipboard
 map <silent> <LocalLeader>pp :set paste!<CR>
 
 " YAML
@@ -345,27 +241,7 @@ let g:vim_yaml_helper#auto_display_path = 1
 " Pasting over a selection does not replace the clipboard
 xnoremap <expr> p 'pgv"'.v:register.'y'
 
-" ========= Insert Shortcuts ========
-
-imap <C-L> <SPACE>=><SPACE>
-
 " ========= Functions ========
-
-command! SudoW w !sudo tee %
-
-" http://techspeak.plainlystated.com/2009/08/vim-tohtml-customization.html
-function! DivHtml(line1, line2)
-  exec a:line1.','.a:line2.'TOhtml'
-  %g/<style/normal $dgg
-  %s/<\/style>\n<\/head>\n//
-  %s/body {/.vim_block {/
-  %s/<body\(.*\)>\n/<div class="vim_block"\1>/
-  %s/<\/body>\n<\/html>/<\/div>
-  "%s/\n/<br \/>\r/g
-
-  set nonu
-endfunction
-command! -range=% DivHtml :call DivHtml(<line1>,<line2>)
 
 function! GitGrepWord()
   cgetexpr system("git grep -n '" . expand("<cword>") . "'")
@@ -381,36 +257,6 @@ function! Trim()
 endfunction
 command! -nargs=0 Trim :call Trim()
 nnoremap <silent> <Leader>cw :Trim<CR>
-
-function! StartInferiorSlimeServer()
-  let g:__InferiorSlimeRunning = 1
-  call VimuxRunCommand("inferior-slime")
-endfunction
-command! -nargs=0 StartInferiorSlimeServer :call StartInferiorSlimeServer()
-
-function! __Edge()
-  colorscheme Tomorrow-Night
-  au BufWinLeave * colorscheme Tomorrow-Night
-
-  set ttyfast
-
-  map <leader>nf :e%:h<CR>
-  map <C-p> :CommandT<CR>
-
-  let g:VimuxOrientation = "h"
-  let g:VimuxHeight = "40"
-endfunction
-
-function! __HardMode()
-  nmap h <nop>
-  nmap j <nop>
-  nmap k <nop>
-  nmap l <nop>
-  nmap <up> <nop>
-  nmap <down> <nop>
-  nmap <left> <nop>
-  nmap <right> <nop>
-endfunction
 
 " cleans up the way the default tabline looks
 " will show tab numbers next to the basename of the file
@@ -465,12 +311,6 @@ set tabline=%!MyTabLine()
 " ========= Aliases ========
 
 command! W w
-
-
-" Autoformat for bazel files
-augroup autoformat_settings
-  autocmd FileType bzl AutoFormatBuffer buildifier
-augroup END
 
 "-------- Local Overrides
 ""If you have options you'd like to override locally for
